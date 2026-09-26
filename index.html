@@ -158,10 +158,13 @@ details.nested summary::before { content: "+ "; } details.nested[open] summary::
 .sub-row input[type=checkbox] { accent-color: var(--tab-accent, var(--work)); width: .95rem; height: .95rem; flex: none; }
 .sub-row .sub-name { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
 .sub-row.done .sub-name { text-decoration: line-through; color: var(--muted); }
+.sub-due-input { flex: none; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 8px; padding: .15rem .4rem; font-size: .78rem; font-weight: 600; width: 8.5rem; color: var(--muted); }
+.sub-due-input.late { color: var(--danger); border-color: var(--danger); }
 .sub-del { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; width: 1.4rem; height: 1.4rem; border-radius: 6px; flex: none; }
 .sub-del:hover { background: var(--surface-2); color: var(--ink); }
-.add-sub { display: flex; gap: .4rem; max-width: 26rem; }
-.add-sub input { flex: 1; min-width: 0; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 10px; padding: .3rem .6rem; font-size: .86rem; font-weight: 600; }
+.add-sub { display: flex; gap: .4rem; max-width: 30rem; flex-wrap: wrap; }
+.add-sub input[type=text] { flex: 1; min-width: 8rem; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 10px; padding: .3rem .6rem; font-size: .86rem; font-weight: 600; }
+.add-sub input[type=date] { flex: none; width: 9.5rem; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 10px; padding: .3rem .6rem; font-size: .86rem; font-weight: 600; }
 .add-sub button { background: var(--ink); color: var(--surface); border: 0; border-radius: 10px; padding: .3rem .8rem; font-weight: 800; cursor: pointer; font-size: .8rem; flex: none; }
 
 .add { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: .5rem; margin-top: .8rem; width: 100%; }
@@ -300,7 +303,7 @@ async function loadState() {
     sb.from("progress_log").select("*"),
   ]);
   const byTask = {};
-  (subtasks || []).forEach(s => { (byTask[s.task_id] ||= []).push({ id: s.id, name: s.name, done: s.done }); });
+  (subtasks || []).forEach(s => { (byTask[s.task_id] ||= []).push({ id: s.id, name: s.name, done: s.done, due: s.due || "" }); });
   state.tasks = (tasks || []).map(t => ({
     id: t.id, section: t.section, name: t.name, tag: t.tag || "", due: t.due || "",
     completed: t.completed, progress: t.progress, doneAt: t.done_at, subtasks: byTask[t.id] || [],
@@ -393,13 +396,16 @@ function selectSection(s) {
 }
 
 /* ============ Rendering: task rows, editing, subtasks ============ */
+const shortDate = due => parseKey(due).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
 function dueText(due) {
   if (!due) return ["No date", false];
   const n = daysUntil(due);
-  if (n === 0) return ["Today", false];
-  if (n === 1) return ["Tomorrow", false];
-  if (n > 1) return [`In ${n} days`, false];
-  return [n === -1 ? "1 day late" : `${-n} days late`, true];
+  const date = shortDate(due);
+  if (n === 0) return [`Today · ${date}`, false];
+  if (n === 1) return [`Tomorrow · ${date}`, false];
+  if (n > 1) return [`In ${n} days · ${date}`, false];
+  return [n === -1 ? `1 day late · ${date}` : `${-n} days late · ${date}`, true];
 }
 
 function progressBarHTML(pct) {
@@ -484,13 +490,20 @@ function buildSubtasks(t) {
     ul.className = "sub-list";
     t.subtasks.forEach(st => {
       const li = document.createElement("li");
+      const [, subLate] = dueText(st.due);
+      const showSubLate = subLate && !st.done;
       li.className = "sub-row" + (st.done ? " done" : "");
-      li.innerHTML = `<input type="checkbox" ${st.done ? "checked" : ""} aria-label="Mark ${st.name} complete"><span class="sub-name"></span><button type="button" class="sub-del" aria-label="Delete subtask">×</button>`;
+      li.innerHTML = `<input type="checkbox" ${st.done ? "checked" : ""} aria-label="Mark ${st.name} complete"><span class="sub-name"></span><input type="date" class="sub-due-input${showSubLate ? " late" : ""}" value="${st.due || ""}" aria-label="${st.name} deadline"><button type="button" class="sub-del" aria-label="Delete subtask">×</button>`;
       li.querySelector(".sub-name").textContent = st.name;
-      li.querySelector("input").addEventListener("change", async e => {
+      li.querySelector("input[type=checkbox]").addEventListener("change", async e => {
         st.done = e.target.checked;
         await sb.from("subtasks").update({ done: st.done }).eq("id", st.id);
         await applyProgress(t);
+        render();
+      });
+      li.querySelector(".sub-due-input").addEventListener("change", async e => {
+        st.due = e.target.value || "";
+        await sb.from("subtasks").update({ due: st.due || null }).eq("id", st.id);
         render();
       });
       li.querySelector(".sub-del").addEventListener("click", async () => {
@@ -504,16 +517,17 @@ function buildSubtasks(t) {
     box.appendChild(ul);
     const addForm = document.createElement("form");
     addForm.className = "add-sub";
-    addForm.innerHTML = `<input type="text" placeholder="Add subtask" aria-label="New subtask" required><button type="submit">Add</button>`;
+    addForm.innerHTML = `<input type="text" name="name" placeholder="Add subtask" aria-label="New subtask" required><input type="date" name="due" aria-label="Subtask deadline"><button type="submit">Add</button>`;
     addForm.addEventListener("submit", async e => {
       e.preventDefault();
-      const input = addForm.querySelector("input");
-      const name = input.value.trim();
+      const name = addForm.name.value.trim();
+      const due = addForm.due.value || null;
       if (!name) return;
-      const { data } = await sb.from("subtasks").insert({ task_id: t.id, name }).select().single();
-      t.subtasks.push({ id: data.id, name: data.name, done: false });
+      const { data } = await sb.from("subtasks").insert({ task_id: t.id, name, due }).select().single();
+      t.subtasks.push({ id: data.id, name: data.name, done: false, due: data.due || "" });
       await applyProgress(t);
       openSubtasks.add(t.id);
+      addForm.reset();
       render();
     });
     box.appendChild(addForm);
