@@ -55,6 +55,17 @@ button, input { font: inherit; color: inherit; }
 .top p { margin: 0; color: var(--muted); font-weight: 600; }
 [hidden] { display: none !important; }
 
+/* ============ View pills ============ */
+.view-tabs { display: flex; gap: .6rem; margin-bottom: 1.5rem; }
+.view-pill { background: var(--surface); color: var(--muted); border: 1.5px solid var(--line); border-radius: 999px;
+  padding: .5rem 1.15rem; font-weight: 800; font-size: .92rem; cursor: pointer; box-shadow: var(--shadow); }
+.view-pill:hover { color: var(--ink); }
+.view-pill.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* ============ Projects view ============ */
+.project-card { margin-bottom: 1.25rem; }
+.project-card:last-child { margin-bottom: 0; }
+
 /* ============ 3. Main board ============ */
 .board { background: var(--surface); border-radius: 26px; padding: 1.5rem; box-shadow: var(--shadow);
   display: grid; grid-template-columns: minmax(0, 1fr) 12.5rem; gap: 1.75rem; align-items: start; width: 100%; }
@@ -195,55 +206,66 @@ details.nested summary::before { content: "+ "; } details.nested[open] summary::
     <p id="todayLabel"></p>
   </header>
 
+  <div class="view-tabs" role="tablist" aria-label="Views">
+    <button type="button" class="view-pill active" data-view="tracker" role="tab" aria-selected="true">Tracker</button>
+    <button type="button" class="view-pill" data-view="projects" role="tab" aria-selected="false">Projects</button>
+  </div>
+
   <div id="app">
-    <section class="board" aria-labelledby="boardTitle">
-      <div>
-        <h2 id="boardTitle">How each day went</h2>
-        <div class="heat-scroll" id="heatScroll">
-          <div class="heat">
-            <div class="months" id="months"></div>
-            <div class="days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-            <div class="cells" id="cells" role="grid" aria-label="Daily progress, last 26 weeks"></div>
+    <div id="trackerView">
+      <section class="board" aria-labelledby="boardTitle">
+        <div>
+          <h2 id="boardTitle">How each day went</h2>
+          <div class="heat-scroll" id="heatScroll">
+            <div class="heat">
+              <div class="months" id="months"></div>
+              <div class="days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
+              <div class="cells" id="cells" role="grid" aria-label="Daily progress, last 26 weeks"></div>
+            </div>
           </div>
+          <div class="heat-foot">
+            <span>Darker squares mean more progress. One finished task is 100 points.</span>
+            <span class="legend">Less
+              <i class="cell" data-l="0"></i><i class="cell" data-l="1"></i><i class="cell" data-l="2"></i><i class="cell" data-l="3"></i><i class="cell" data-l="4"></i>
+            More</span>
+          </div>
+          <p class="day-detail" id="dayDetail" aria-live="polite">Select a square to see that day.</p>
         </div>
-        <div class="heat-foot">
-          <span>Darker squares mean more progress. One finished task is 100 points.</span>
-          <span class="legend">Less
-            <i class="cell" data-l="0"></i><i class="cell" data-l="1"></i><i class="cell" data-l="2"></i><i class="cell" data-l="3"></i><i class="cell" data-l="4"></i>
-          More</span>
+        <div class="stats">
+          <div class="stat"><b id="statToday">0</b><span>points today</span></div>
+          <div class="stat"><b id="statStreak">0</b><span>day streak</span></div>
+          <div class="stat"><b id="statWeek">0</b><span>tasks finished this week</span></div>
         </div>
-        <p class="day-detail" id="dayDetail" aria-live="polite">Select a square to see that day.</p>
-      </div>
-      <div class="stats">
-        <div class="stat"><b id="statToday">0</b><span>points today</span></div>
-        <div class="stat"><b id="statStreak">0</b><span>day streak</span></div>
-        <div class="stat"><b id="statWeek">0</b><span>tasks finished this week</span></div>
-      </div>
-    </section>
+      </section>
 
-    <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
 
-    <section class="panel" id="panel" role="tabpanel" hidden>
-      <div class="panel-head">
-        <h2 id="panelTitle"></h2>
-        <p class="bubble" id="panelBubble"></p>
-      </div>
-      <h3 class="sub">Pending</h3>
-      <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Project</span><span>Deadline</span><span>Progress</span><span></span></div>
-      <ul class="list pending" id="pendingList"></ul>
-      <form class="add" id="addForm">
-        <input name="name" placeholder="New task" required aria-label="Task name">
-        <input name="tag" placeholder="Project" aria-label="Project tag">
-        <input name="due" type="date" aria-label="Deadline">
-        <button type="submit">Add</button>
-      </form>
-      <details class="nested">
-        <summary id="doneSummary">Completed</summary>
-        <ul class="list completed" id="completedList"></ul>
-      </details>
-    </section>
+      <section class="panel" id="panel" role="tabpanel" hidden>
+        <div class="panel-head">
+          <h2 id="panelTitle"></h2>
+          <p class="bubble" id="panelBubble"></p>
+        </div>
+        <h3 class="sub">Pending</h3>
+        <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Project</span><span>Deadline</span><span>Progress</span><span></span></div>
+        <ul class="list pending" id="pendingList"></ul>
+        <form class="add" id="addForm">
+          <input name="name" placeholder="New task" required aria-label="Task name">
+          <input name="tag" placeholder="Project" aria-label="Project tag">
+          <input name="due" type="date" aria-label="Deadline">
+          <button type="submit">Add</button>
+        </form>
+        <details class="nested">
+          <summary id="doneSummary">Completed</summary>
+          <ul class="list completed" id="completedList"></ul>
+        </details>
+      </section>
 
-    <p class="empty-state" id="emptyState">Press a section above to see its tasks.</p>
+      <p class="empty-state" id="emptyState">Press a section above to see its tasks.</p>
+    </div>
+
+    <div id="projectsView" hidden>
+      <div id="projectsList"></div>
+    </div>
 
     <div class="foot"><button class="reset" id="reset">Clear everything and start fresh</button></div>
   </div>
@@ -269,6 +291,7 @@ const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 let state = { tasks: [], log: {} };
 let activeSection = null;
 let editingId = null;
+let currentView = "tracker";
 const openSubtasks = new Set();
 
 /* progress is always DERIVED: checked task = 100, otherwise % of subtasks done, otherwise 0 */
@@ -412,9 +435,10 @@ function progressBarHTML(pct) {
   return `<div class="t-prog"><div class="t-bar"><div class="t-bar-fill" style="width:${pct}%"></div></div><output>${pct}%</output></div>`;
 }
 
-function buildViewRow(t) {
+function buildViewRow(t, opts = {}) {
   const row = document.createElement("div");
   row.className = "task";
+  row.style.setProperty("--tab-accent", `var(${ACCENT_VAR[t.section]})`);
   const [dt, late] = dueText(t.due);
   const showLate = late && t.progress < 100;
   row.innerHTML = `
@@ -429,7 +453,8 @@ function buildViewRow(t) {
     </div>`;
   row.querySelector(".t-name").textContent = t.name;
   const tag = row.querySelector(".t-tag");
-  if (t.tag) { tag.textContent = t.tag; tag.title = t.tag; } else tag.style.visibility = "hidden";
+  const tagText = opts.showSection ? SECTIONS[t.section] : t.tag;
+  if (tagText) { tag.textContent = tagText; tag.title = tagText; } else tag.style.visibility = "hidden";
   row.querySelector(".t-check").addEventListener("change", async e => {
     t.completed = e.target.checked;
     await applyProgress(t);
@@ -446,6 +471,7 @@ function buildViewRow(t) {
 function buildEditRow(t) {
   const form = document.createElement("form");
   form.className = "task editing";
+  form.style.setProperty("--tab-accent", `var(${ACCENT_VAR[t.section]})`);
   form.innerHTML = `
     <span></span>
     <input type="text" name="name" value="${t.name.replace(/"/g, "&quot;")}" required aria-label="Task name">
@@ -536,16 +562,16 @@ function buildSubtasks(t) {
   return wrap;
 }
 
-function taskRow(t) {
+function taskRow(t, opts = {}) {
   const li = document.createElement("li");
   li.className = "task-wrap" + (t.progress >= 100 ? " done" : "");
-  li.appendChild(editingId === t.id ? buildEditRow(t) : buildViewRow(t));
+  li.appendChild(editingId === t.id ? buildEditRow(t) : buildViewRow(t, opts));
   li.appendChild(buildSubtasks(t));
   return li;
 }
 
-function fill(ul, tasks, emptyText) {
-  ul.replaceChildren(...(tasks.length ? tasks.map(taskRow) : [Object.assign(document.createElement("li"), { className: "empty", textContent: emptyText })]));
+function fill(ul, tasks, emptyText, opts = {}) {
+  ul.replaceChildren(...(tasks.length ? tasks.map(t => taskRow(t, opts)) : [Object.assign(document.createElement("li"), { className: "empty", textContent: emptyText })]));
 }
 
 function renderPanel() {
@@ -564,7 +590,7 @@ function renderPanel() {
   fill(document.getElementById("pendingList"), pending, "No pending tasks.");
   fill(document.getElementById("completedList"), done, "Finished tasks will land here.");
   document.getElementById("doneSummary").textContent = `Completed (${done.length})`;
-  document.querySelector(".panel .cols").hidden = !pending.length;
+  document.querySelector("#panel .cols").hidden = !pending.length;
 
   document.getElementById("addForm").dataset.section = s;
 }
@@ -621,7 +647,72 @@ function renderHeatmap() {
   document.getElementById("statWeek").textContent = state.tasks.filter(x => x.doneAt && x.doneAt >= weekStart).length;
 }
 
-function render() { renderHeatmap(); renderTabs(); renderPanel(); }
+/* ============ Rendering: Projects view ============ */
+function buildProjectCard(name, tasks) {
+  const card = document.createElement("section");
+  card.className = "panel project-card";
+  const pending = tasks.filter(t => t.progress < 100).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999"));
+  const done = tasks.filter(t => t.progress >= 100).sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""));
+  card.innerHTML = `
+    <div class="panel-head">
+      <h2></h2>
+      <p class="bubble"></p>
+    </div>
+    <h3 class="sub">Pending</h3>
+    <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Section</span><span>Deadline</span><span>Progress</span><span></span></div>
+    <ul class="list pending"></ul>
+    <details class="nested">
+      <summary>Completed (${done.length})</summary>
+      <ul class="list completed"></ul>
+    </details>`;
+  card.querySelector("h2").textContent = name;
+  card.querySelector(".bubble").textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} · ${done.length} done`;
+  fill(card.querySelector(".pending"), pending, "No pending tasks.", { showSection: true });
+  fill(card.querySelector(".completed"), done, "Finished tasks will land here.", { showSection: true });
+  card.querySelector(".cols").hidden = !pending.length;
+  return card;
+}
+
+function renderProjects() {
+  const box = document.getElementById("projectsList");
+  const groups = {};
+  state.tasks.forEach(t => {
+    const key = (t.tag || "").trim() || "No project";
+    (groups[key] ||= []).push(t);
+  });
+  const names = Object.keys(groups).sort((a, b) => {
+    if (a === "No project") return 1;
+    if (b === "No project") return -1;
+    return a.localeCompare(b);
+  });
+  if (!names.length) {
+    box.replaceChildren(Object.assign(document.createElement("p"), {
+      className: "empty-state", textContent: "No projects yet. Add a task with a project name to see it here.",
+    }));
+    return;
+  }
+  box.replaceChildren(...names.map(name => buildProjectCard(name, groups[name])));
+}
+
+function render() {
+  renderHeatmap(); renderTabs(); renderPanel();
+  if (currentView === "projects") renderProjects();
+}
+
+function selectView(v) {
+  currentView = v;
+  try { localStorage.setItem("taskden-view", v); } catch (e) {}
+  document.querySelectorAll(".view-pill").forEach(p => {
+    const active = p.dataset.view === v;
+    p.classList.toggle("active", active);
+    p.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.getElementById("trackerView").hidden = v !== "tracker";
+  document.getElementById("projectsView").hidden = v !== "projects";
+  render();
+}
+
+document.querySelectorAll(".view-pill").forEach(p => p.addEventListener("click", () => selectView(p.dataset.view)));
 
 document.getElementById("todayLabel").textContent =
   new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
@@ -642,7 +733,9 @@ document.getElementById("reset").addEventListener("click", async () => {
   let saved = null;
   try { saved = localStorage.getItem("taskden-active-section"); } catch (e) {}
   if (saved && SECTIONS[saved]) activeSection = saved;
-  render();
+  let savedView = null;
+  try { savedView = localStorage.getItem("taskden-view"); } catch (e) {}
+  selectView(savedView === "projects" ? "projects" : "tracker");
 })();
 </script>
 </body>
