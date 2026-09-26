@@ -53,22 +53,6 @@ button, input { font: inherit; color: inherit; }
 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .top h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
 .top p { margin: 0; color: var(--muted); font-weight: 600; }
-.top-right { display: flex; align-items: center; gap: .8rem; }
-.signout { background: transparent; color: var(--muted); border: 1.5px solid var(--line); border-radius: 12px; padding: .4rem .9rem; font-weight: 800; cursor: pointer; font-size: .82rem; }
-.signout:hover { color: var(--ink); }
-
-/* ============ Auth screen ============ */
-.auth-wrap { max-width: 380px; margin: 3rem auto; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 2rem; }
-.auth-wrap h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: .3rem; }
-.auth-wrap p.sub-text { color: var(--muted); font-weight: 600; font-size: .9rem; margin: 0 0 1.2rem; }
-.auth-form { display: grid; gap: .7rem; }
-.auth-form input { background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 12px; padding: .6rem .8rem; font-weight: 600; width: 100%; }
-.auth-actions { display: flex; gap: .6rem; margin-top: .3rem; }
-.auth-actions button { flex: 1; border-radius: 12px; padding: .6rem 1rem; font-weight: 800; cursor: pointer; border: 0; }
-.auth-actions .primary { background: var(--ink); color: var(--surface); }
-.auth-actions .secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
-.auth-msg { min-height: 1.2em; font-size: .85rem; font-weight: 700; margin: 0; }
-.auth-msg.error { color: var(--danger); }
 [hidden] { display: none !important; }
 
 /* ============ 3. Main board ============ */
@@ -205,27 +189,10 @@ details.nested summary::before { content: "+ "; } details.nested[open] summary::
 
   <header class="top">
     <h1>Task den</h1>
-    <div class="top-right">
-      <p id="todayLabel"></p>
-      <button type="button" class="signout" id="signOutBtn" hidden>Sign out</button>
-    </div>
+    <p id="todayLabel"></p>
   </header>
 
-  <section class="auth-wrap" id="authWrap">
-    <h2 id="authTitle">Welcome back</h2>
-    <p class="sub-text" id="authSub">Sign in to sync your tasks.</p>
-    <form class="auth-form" id="authForm">
-      <input type="email" name="email" placeholder="Email" required autocomplete="email">
-      <input type="password" name="password" placeholder="Password" required autocomplete="current-password" minlength="6">
-      <p class="auth-msg" id="authMsg" aria-live="polite"></p>
-      <div class="auth-actions">
-        <button type="submit" class="primary" id="authSubmit">Sign in</button>
-        <button type="button" class="secondary" id="authToggle">Create account</button>
-      </div>
-    </form>
-  </section>
-
-  <div id="app" hidden>
+  <div id="app">
     <section class="board" aria-labelledby="boardTitle">
       <div>
         <h2 id="boardTitle">How each day went</h2>
@@ -297,7 +264,6 @@ const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); r
 const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 
 let state = { tasks: [], log: {} };
-let userId = null;
 let activeSection = null;
 let editingId = null;
 const openSubtasks = new Set();
@@ -313,7 +279,7 @@ async function bumpLog(delta) {
   const k = keyOf(today());
   const next = Math.max(0, (state.log[k] || 0) + delta);
   state.log[k] = next;
-  await sb.from("progress_log").upsert({ user_id: userId, day: k, points: next }, { onConflict: "user_id,day" });
+  await sb.from("progress_log").upsert({ day: k, points: next }, { onConflict: "day" });
 }
 
 /* recomputes + persists a task's progress/doneAt after a completion or subtask change */
@@ -543,7 +509,7 @@ function buildSubtasks(t) {
       const input = addForm.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      const { data } = await sb.from("subtasks").insert({ task_id: t.id, user_id: userId, name }).select().single();
+      const { data } = await sb.from("subtasks").insert({ task_id: t.id, name }).select().single();
       t.subtasks.push({ id: data.id, name: data.name, done: false });
       await applyProgress(t);
       openSubtasks.add(t.id);
@@ -595,7 +561,7 @@ document.getElementById("addForm").addEventListener("submit", async e => {
   const name = f.name.value.trim();
   if (!name) return;
   const { data } = await sb.from("tasks").insert({
-    user_id: userId, section: activeSection, name, tag: f.tag.value.trim(), due: f.due.value || null,
+    section: activeSection, name, tag: f.tag.value.trim(), due: f.due.value || null,
   }).select().single();
   state.tasks.push({ id: data.id, section: data.section, name: data.name, tag: data.tag || "", due: data.due || "", completed: false, progress: 0, doneAt: null, subtasks: [] });
   f.reset(); render();
@@ -646,80 +612,19 @@ document.getElementById("todayLabel").textContent =
   new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
 document.getElementById("reset").addEventListener("click", async () => {
-  if (!confirm("Delete all your tasks and history? This can't be undone.")) return;
+  if (!confirm("Delete all tasks and history? This can't be undone.")) return;
   await Promise.all([
-    sb.from("tasks").delete().eq("user_id", userId),
-    sb.from("progress_log").delete().eq("user_id", userId),
+    sb.from("tasks").delete().not("id", "is", null),
+    sb.from("progress_log").delete().not("id", "is", null),
   ]);
   state = { tasks: [], log: {} }; activeSection = null; editingId = null; openSubtasks.clear();
   render();
 });
 
-/* ============ Auth ============ */
-let authMode = "signin";
-const authForm = document.getElementById("authForm");
-const authMsg = document.getElementById("authMsg");
-const authTitle = document.getElementById("authTitle");
-const authSub = document.getElementById("authSub");
-const authSubmit = document.getElementById("authSubmit");
-const authToggle = document.getElementById("authToggle");
-
-authToggle.addEventListener("click", () => {
-  authMode = authMode === "signin" ? "signup" : "signin";
-  authMsg.textContent = ""; authMsg.classList.remove("error");
-  if (authMode === "signup") {
-    authTitle.textContent = "Create your den";
-    authSub.textContent = "Set a password to start tracking tasks.";
-    authSubmit.textContent = "Sign up";
-    authToggle.textContent = "I have an account";
-  } else {
-    authTitle.textContent = "Welcome back";
-    authSub.textContent = "Sign in to sync your tasks.";
-    authSubmit.textContent = "Sign in";
-    authToggle.textContent = "Create account";
-  }
-});
-
-authForm.addEventListener("submit", async e => {
-  e.preventDefault();
-  const email = authForm.email.value.trim();
-  const password = authForm.password.value;
-  authMsg.textContent = ""; authMsg.classList.remove("error");
-  const { error } = authMode === "signup"
-    ? await sb.auth.signUp({ email, password })
-    : await sb.auth.signInWithPassword({ email, password });
-  if (error) { authMsg.textContent = error.message; authMsg.classList.add("error"); return; }
-  if (authMode === "signup") {
-    authMsg.textContent = "Check your email to confirm, then sign in.";
-    authMode = "signin"; authToggle.click(); authToggle.click();
-  }
-});
-
-document.getElementById("signOutBtn").addEventListener("click", async () => {
-  await sb.auth.signOut();
-});
-
-async function showApp() {
-  document.getElementById("authWrap").hidden = true;
-  document.getElementById("app").hidden = false;
-  document.getElementById("signOutBtn").hidden = false;
+(async function init() {
   await loadState();
   render();
-}
-function showAuth() {
-  document.getElementById("authWrap").hidden = false;
-  document.getElementById("app").hidden = true;
-  document.getElementById("signOutBtn").hidden = true;
-}
-
-sb.auth.onAuthStateChange((_event, session) => {
-  userId = session?.user?.id || null;
-  if (userId) showApp(); else showAuth();
-});
-sb.auth.getSession().then(({ data }) => {
-  userId = data.session?.user?.id || null;
-  if (userId) showApp(); else showAuth();
-});
+})();
 </script>
 </body>
 </html>
