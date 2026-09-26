@@ -124,6 +124,8 @@ button, input { font: inherit; color: inherit; }
 /* ============ 5. Panel (only the active section) ============ */
 .panel { background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 1.5rem; width: 100%; }
 .panel[hidden] { display: none; }
+.add-panel { margin-top: 1.25rem; background: var(--surface-2); }
+.add-panel .sub { margin-top: 0; }
 .panel-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .2rem; }
 .panel-head h2 { font-size: 1.3rem; font-weight: 800; }
 .panel-head .bubble { margin: 0; color: var(--muted); font-weight: 600; font-size: .92rem; }
@@ -254,16 +256,20 @@ details.nested summary::before { content: "+ "; } details.nested[open] summary::
         <h3 class="sub">Pending</h3>
         <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Project</span><span>Deadline</span><span>Progress</span><span></span></div>
         <ul class="list pending" id="pendingList"></ul>
+        <details class="nested">
+          <summary id="doneSummary">Completed</summary>
+          <ul class="list completed" id="completedList"></ul>
+        </details>
+      </section>
+
+      <section class="panel add-panel" id="addPanel" hidden>
+        <h3 class="sub">Add a task</h3>
         <form class="add" id="addForm">
           <input name="name" placeholder="New task" required aria-label="Task name">
           <input name="tag" placeholder="Project" aria-label="Project tag">
           <input name="due" type="date" aria-label="Deadline">
           <button type="submit">Add</button>
         </form>
-        <details class="nested">
-          <summary id="doneSummary">Completed</summary>
-          <ul class="list completed" id="completedList"></ul>
-        </details>
       </section>
 
       <p class="empty-state" id="emptyState">Press a section above to see its tasks.</p>
@@ -583,11 +589,13 @@ function fill(ul, tasks, emptyText, opts = {}) {
 
 function renderPanel() {
   const panel = document.getElementById("panel");
+  const addPanel = document.getElementById("addPanel");
   const empty = document.getElementById("emptyState");
-  if (!activeSection) { panel.hidden = true; empty.hidden = false; return; }
-  empty.hidden = true; panel.hidden = false;
+  if (!activeSection) { panel.hidden = true; addPanel.hidden = true; empty.hidden = false; return; }
+  empty.hidden = true; panel.hidden = false; addPanel.hidden = false;
   const s = activeSection;
   panel.style.setProperty("--tab-accent", `var(${ACCENT_VAR[s]})`);
+  addPanel.style.setProperty("--tab-accent", `var(${ACCENT_VAR[s]})`);
   document.getElementById("panelTitle").textContent = SECTIONS[s];
   document.getElementById("panelBubble").textContent = moodFor(s).text;
 
