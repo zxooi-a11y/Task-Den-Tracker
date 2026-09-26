@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task den</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ 1. Design tokens ============ */
+:root {
+  --bg: #F1E6D6;
+  --surface: #FFFFFF;
+  --surface-2: #F7F0E4;
+  --ink: #2B2117;
+  --muted: #8C7561;
+  --line: #EBE0CE;
+  --danger: #C0503B;
+  --shadow: 0 14px 30px -18px rgba(43, 33, 23, .35);
+  --h0: #E7D9C4; --h1: #D6B78C; --h2: #C1935C; --h3: #9C6A38; --h4: #6E4620;
+  --work: #D98A4E; --admin: #96A05F; --life: #DD8B85; --play: #6E9EC4;
+  --font: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --cell: 13px;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #211812; --surface: #2B2019; --surface-2: #33261D;
+    --ink: #F3E7D8; --muted: #BBA189; --line: #45362A; --danger: #E4897A;
+    --h0: #382B20; --h1: #5C4128; --h2: #825B32; --h3: #AD7A44; --h4: #DBA669;
+    --shadow: 0 14px 30px -16px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #211812; --surface: #2B2019; --surface-2: #33261D;
+  --ink: #F3E7D8; --muted: #BBA189; --line: #45362A; --danger: #E4897A;
+  --h0: #382B20; --h1: #5C4128; --h2: #825B32; --h3: #AD7A44; --h4: #DBA669;
+  --shadow: 0 14px 30px -16px rgba(0,0,0,.5);
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; min-width: 0; }
+html, body { max-width: 100%; overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 500 16px/1.5 var(--font); }
+h1, h2, h3 { font-family: var(--font); margin: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+.page { max-width: 1080px; margin: 0 auto; padding: 1.75rem 1.25rem 3rem; width: 100%; }
+
+/* ============ 2. Header ============ */
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.top h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
+.top p { margin: 0; color: var(--muted); font-weight: 600; }
+
+/* ============ 3. Main board ============ */
+.board { background: var(--surface); border-radius: 26px; padding: 1.5rem; box-shadow: var(--shadow);
+  display: grid; grid-template-columns: minmax(0, 1fr) 12.5rem; gap: 1.75rem; align-items: start; width: 100%; }
+.board h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: .9rem; }
+.heat-scroll { overflow-x: auto; padding-bottom: .25rem; max-width: 100%; }
+.heat { display: grid; grid-template-columns: 2rem auto; column-gap: .4rem; width: max-content; }
+.months, .cells { display: grid; grid-auto-flow: column; gap: 3px; grid-auto-columns: var(--cell); }
+.months { grid-column: 2; height: 1.2rem; font-size: .7rem; font-weight: 700; color: var(--muted); }
+.months span { white-space: nowrap; }
+.days { display: grid; grid-template-rows: repeat(7, var(--cell)); gap: 3px; font-size: .65rem; font-weight: 700; color: var(--muted); line-height: var(--cell); }
+.cells { grid-template-rows: repeat(7, var(--cell)); }
+.cell { width: var(--cell); height: var(--cell); border-radius: 4px; background: var(--h0); border: 0; padding: 0; cursor: pointer; }
+.cell[data-l="1"] { background: var(--h1); } .cell[data-l="2"] { background: var(--h2); }
+.cell[data-l="3"] { background: var(--h3); } .cell[data-l="4"] { background: var(--h4); }
+.cell.today { box-shadow: 0 0 0 2px var(--ink); }
+.heat-foot { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: .7rem; font-size: .78rem; color: var(--muted); font-weight: 600; }
+.legend { display: flex; align-items: center; gap: 3px; }
+.legend .cell { cursor: default; }
+.day-detail { min-height: 1.4em; margin: .55rem 0 0; font-size: .88rem; font-weight: 700; }
+.stats { display: grid; gap: .7rem; }
+.stat { background: var(--surface-2); border-radius: 16px; padding: .7rem .9rem; }
+.stat b { font-size: 1.6rem; font-weight: 800; display: block; line-height: 1.15; letter-spacing: -.02em; }
+.stat span { font-size: .8rem; color: var(--muted); font-weight: 700; }
+
+/* ============ 4. Section tabs (equal-width big boxes) ============ */
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 1.75rem 0 1.5rem; width: 100%; }
+.tab { --accent: var(--work); width: 100%; background: var(--surface); border: 2.5px solid transparent; border-top: 6px solid var(--accent);
+  border-radius: 15px; box-shadow: var(--shadow); padding: 1.15rem 1.1rem; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: .7rem; transition: background .15s ease, border-color .15s ease, transform .1s ease; overflow: hidden; }
+.tab[data-section="admin"] { --accent: var(--admin); }
+.tab[data-section="life"]  { --accent: var(--life); }
+.tab[data-section="play"]  { --accent: var(--play); }
+.tab:hover { transform: translateY(-2px); }
+.tab.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.tab-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.tab .buddy { width: 52px; height: 52px; border-radius: 16px; flex: none;
+  background: color-mix(in srgb, var(--accent) 26%, var(--surface)); display: flex; align-items: center; justify-content: center; }
+.tab .buddy svg { width: 66%; height: 66%; overflow: visible; }
+.tab.active .buddy[data-mood="focused"] svg, .tab.active .buddy[data-mood="proud"] svg { animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .tab .buddy svg { animation: none !important; } }
+.ring { position: relative; width: 40px; height: 40px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--accent) calc(var(--pct, 0) * 1%), var(--line) 0); display: flex; align-items: center; justify-content: center; }
+.ring::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--surface); }
+.tab.active .ring::before { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.ring-pct { position: relative; font-size: .62rem; font-weight: 800; }
+.tab .name { font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .mood { font-size: .78rem; color: var(--muted); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============ 5. Panel (only the active section) ============ */
+.panel { background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 1.5rem; width: 100%; }
+.panel[hidden] { display: none; }
+.panel-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .2rem; }
+.panel-head h2 { font-size: 1.3rem; font-weight: 800; }
+.panel-head .bubble { margin: 0; color: var(--muted); font-weight: 600; font-size: .92rem; }
+.empty-state { text-align: center; color: var(--muted); font-weight: 600; padding: 2.5rem 1rem; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); }
+.sub { font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 1.1rem 0 .6rem; }
+
+/* ============ 6. Task rows ============ */
+.cols, .task { display: grid; align-items: center; gap: .6rem; width: 100%;
+  grid-template-columns: 1.3rem minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) 3.2rem; }
+.cols { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 0 .1rem .4rem; }
+.list { list-style: none; margin: 0; padding: 0; }
+.task-wrap { border-bottom: 1px solid var(--line); padding: .65rem 0; }
+.list li.task-wrap:last-child { border-bottom: 0; }
+.t-check { accent-color: var(--tab-accent, var(--work)); width: 1.1rem; height: 1.1rem; cursor: pointer; }
+.t-name { font-weight: 700; overflow-wrap: anywhere; }
+.done .t-name { text-decoration: line-through; color: var(--muted); }
+.t-tag { justify-self: start; background: color-mix(in srgb, var(--tab-accent, var(--work)) 20%, var(--surface)); padding: .15rem .65rem; border-radius: 999px;
+  font-size: .78rem; font-weight: 800; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t-due { font-size: .85rem; font-weight: 700; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t-due.late { color: var(--danger); }
+.t-prog { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.t-bar { flex: 1; min-width: 0; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.t-bar-fill { height: 100%; border-radius: 999px; background: var(--tab-accent, var(--work)); transition: width .25s ease; }
+.t-prog output { font-size: .78rem; font-weight: 800; width: 2.2rem; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.t-actions { display: flex; gap: .2rem; justify-content: flex-end; }
+.t-edit, .t-del { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 1.05rem; line-height: 1; border-radius: 8px; width: 1.6rem; height: 1.6rem; flex: none; }
+.t-edit:hover, .t-del:hover { background: var(--surface-2); color: var(--ink); }
+
+.empty { color: var(--muted); font-size: .88rem; font-weight: 600; padding: .5rem .1rem; }
+details.nested summary { cursor: pointer; list-style: none; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 1.1rem 0 .5rem; }
+details.nested summary::-webkit-details-marker { display: none; }
+details.nested summary::before { content: "+ "; } details.nested[open] summary::before { content: "\2013 "; }
+
+/* Editing a task in place */
+.task.editing { grid-template-columns: 1.3rem minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) auto; }
+.task.editing input[type=text], .task.editing input[type=date] { background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 10px; padding: .3rem .5rem; width: 100%; font-weight: 600; font-size: .92rem; }
+.edit-actions { display: flex; gap: .3rem; }
+.save-btn, .cancel-btn { border-radius: 10px; padding: .3rem .7rem; font-weight: 800; cursor: pointer; font-size: .8rem; white-space: nowrap; }
+.save-btn { background: var(--tab-accent, var(--work)); color: var(--surface); border: 0; }
+.cancel-btn { background: none; border: 1.5px solid var(--line); color: var(--muted); }
+
+/* Subtasks */
+.subtasks-wrap { padding-left: 1.9rem; }
+.sub-toggle { background: none; border: 0; color: var(--muted); font-size: .78rem; font-weight: 800; cursor: pointer; padding: .2rem 0; }
+.sub-toggle:hover { color: var(--ink); }
+.subtasks { margin: .35rem 0 .5rem; max-width: 100%; }
+.sub-list { list-style: none; margin: 0 0 .45rem; padding: 0; display: grid; gap: .3rem; }
+.sub-row { display: flex; align-items: center; gap: .5rem; font-size: .86rem; }
+.sub-row input[type=checkbox] { accent-color: var(--tab-accent, var(--work)); width: .95rem; height: .95rem; flex: none; }
+.sub-row .sub-name { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
+.sub-row.done .sub-name { text-decoration: line-through; color: var(--muted); }
+.sub-del { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; width: 1.4rem; height: 1.4rem; border-radius: 6px; flex: none; }
+.sub-del:hover { background: var(--surface-2); color: var(--ink); }
+.add-sub { display: flex; gap: .4rem; max-width: 26rem; }
+.add-sub input { flex: 1; min-width: 0; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 10px; padding: .3rem .6rem; font-size: .86rem; font-weight: 600; }
+.add-sub button { background: var(--ink); color: var(--surface); border: 0; border-radius: 10px; padding: .3rem .8rem; font-weight: 800; cursor: pointer; font-size: .8rem; flex: none; }
+
+.add { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: .5rem; margin-top: .8rem; width: 100%; }
+.add input { background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 12px; padding: .5rem .75rem; min-width: 0; font-weight: 600; }
+.add button, .reset { background: var(--ink); color: var(--surface); border: 0; border-radius: 12px; padding: .5rem 1.1rem; font-weight: 800; cursor: pointer; }
+.foot { text-align: center; margin-top: 2rem; }
+.reset { background: transparent; color: var(--muted); border: 1.5px solid var(--line); }
+
+/* ============ 7. Small screens ============ */
+@media (max-width: 760px) {
+  .board { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols { display: none; }
+  .task, .task.editing { grid-template-columns: 1.3rem 1fr auto; grid-template-areas: "check name actions" "check tag due" "check prog prog"; row-gap: .4rem; }
+  .t-check { grid-area: check; align-self: start; margin-top: .15rem; }
+  .t-name { grid-area: name; } .t-tag { grid-area: tag; } .t-due { grid-area: due; text-align: right; }
+  .t-prog { grid-area: prog; } .t-actions, .edit-actions { grid-area: actions; }
+  .add { grid-template-columns: 1fr 1fr; } .add input:first-child { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <h1>Task den</h1>
+    <p id="todayLabel"></p>
+  </header>
+
+  <section class="board" aria-labelledby="boardTitle">
+    <div>
+      <h2 id="boardTitle">How each day went</h2>
+      <div class="heat-scroll" id="heatScroll">
+        <div class="heat">
+          <div class="months" id="months"></div>
+          <div class="days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
+          <div class="cells" id="cells" role="grid" aria-label="Daily progress, last 26 weeks"></div>
+        </div>
+      </div>
+      <div class="heat-foot">
+        <span>Darker squares mean more progress. One finished task is 100 points.</span>
+        <span class="legend">Less
+          <i class="cell" data-l="0"></i><i class="cell" data-l="1"></i><i class="cell" data-l="2"></i><i class="cell" data-l="3"></i><i class="cell" data-l="4"></i>
+        More</span>
+      </div>
+      <p class="day-detail" id="dayDetail" aria-live="polite">Select a square to see that day.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="statToday">0</b><span>points today</span></div>
+      <div class="stat"><b id="statStreak">0</b><span>day streak</span></div>
+      <div class="stat"><b id="statWeek">0</b><span>tasks finished this week</span></div>
+    </div>
+  </section>
+
+  <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
+
+  <section class="panel" id="panel" role="tabpanel" hidden>
+    <div class="panel-head">
+      <h2 id="panelTitle"></h2>
+      <p class="bubble" id="panelBubble"></p>
+    </div>
+    <h3 class="sub">Pending</h3>
+    <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Project</span><span>Deadline</span><span>Progress</span><span></span></div>
+    <ul class="list pending" id="pendingList"></ul>
+    <form class="add" id="addForm">
+      <input name="name" placeholder="New task" required aria-label="Task name">
+      <input name="tag" placeholder="Project" aria-label="Project tag">
+      <input name="due" type="date" aria-label="Deadline">
+      <button type="submit">Add</button>
+    </form>
+    <details class="nested">
+      <summary id="doneSummary">Completed</summary>
+      <ul class="list completed" id="completedList"></ul>
+    </details>
+  </section>
+
+  <p class="empty-state" id="emptyState">Press a section above to see its tasks.</p>
+
+  <div class="foot"><button class="reset" id="reset">Clear everything and start fresh</button></div>
+</div>
+
+<script>
+/* ============ Data ============ */
+const KEY = "taskden-v2";
+const SECTIONS = { work: "Work", admin: "Admin", life: "Life", play: "Play" };
+const ACCENT_VAR = { work: "--work", admin: "--admin", life: "--life", play: "--play" };
+
+const pad = n => String(n).padStart(2, "0");
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseKey = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const rel = n => keyOf(addDays(today(), n));
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+/* progress is always DERIVED: checked task = 100, otherwise % of subtasks done, otherwise 0 */
+function computeProgress(t) {
+  if (t.completed) return 100;
+  if (t.subtasks.length) return Math.round((t.subtasks.filter(s => s.done).length / t.subtasks.length) * 100);
+  return 0;
+}
+function applyProgress(t) {
+  const next = computeProgress(t);
+  if (next !== t.progress) logProgress(next - t.progress);
+  t.progress = next;
+  t.doneAt = next >= 100 ? keyOf(today()) : null;
+}
+
+function seed() {
+  const mk = (section, name, tag, dueIn, completed, doneIn, subtaskDefs) => {
+    const subtasks = (subtaskDefs || []).map(([n2, done]) => ({ id: uid(), name: n2, done: !!done }));
+    const t = { id: uid(), section, name, tag, due: dueIn == null ? "" : rel(dueIn), completed: !!completed, progress: 0, doneAt: null, subtasks };
+    t.progress = computeProgress(t);
+    t.doneAt = doneIn != null ? rel(doneIn) : (t.progress >= 100 ? keyOf(today()) : null);
+    return t;
+  };
+  const tasks = [
+    mk("work", "Draft Q4 roadmap", "Roadmap", 3, false, null, [["Outline goals", true], ["Share with team", false], ["Get sign-off", false]]),
+    mk("work", "Review Lina's pull request", "Platform", -1, false),
+    mk("work", "Sprint retro notes", "Team", -3, true, -2),
+    mk("admin", "Renew car insurance", "Car", 6, false),
+    mk("admin", "File September receipts", "Taxes", 10, false, null, [["Collect receipts", true], ["Scan and upload", false]]),
+    mk("life", "Book dentist appointment", "Health", 2, false, null, [["Find a dentist", true], ["Call to book", false]]),
+    mk("life", "Call grandma", "Family", -1, true, -1),
+    mk("life", "Deep-clean the kitchen", "Home", 0, true, 0),
+    mk("play", "Finish my mystery novel", "Reading", null, true, -3),
+  ];
+  const log = {};
+  const bump = (n, pts) => { const k = rel(n); log[k] = (log[k] || 0) + pts; };
+  bump(-1, 40); bump(-4, 20); bump(0, 60);
+  bump(-2, 100); bump(-1, 100); bump(0, 100); bump(-3, 100);
+  return { tasks, log };
+}
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch (e) { state = seed(); }
+state.tasks.forEach(t => { if (!t.subtasks) t.subtasks = []; if (t.completed == null) t.completed = t.progress >= 100; });
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+let activeSection = null;
+let editingId = null;
+const openSubtasks = new Set();
+
+function logProgress(delta) {
+  const k = keyOf(today());
+  state.log[k] = Math.max(0, (state.log[k] || 0) + delta);
+}
+
+/* ============ Characters — flat, modern, still cute ============ */
+const BODIES = {
+  work: `<path d="M20 34h44v20a22 22 0 0 1-22 22 22 22 0 0 1-22-22z" fill="var(--accent)"/>
+         <path d="M64 40h6a10 10 0 0 1 0 20h-6" fill="none" stroke="var(--accent)" stroke-width="7"/>
+         <path d="M32 26q4-8 0-16M44 26q4-10 0-18M56 26q4-8 0-16" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".55"/>`,
+  admin: `<rect x="18" y="16" width="48" height="60" rx="10" fill="var(--accent)"/>
+          <rect x="30" y="8" width="24" height="14" rx="6" fill="var(--accent)"/>`,
+  life: `<path d="M50 40V20" stroke="var(--accent)" stroke-width="6" stroke-linecap="round"/>
+         <path d="M50 24q-16 0-18-16q16 0 18 16zM50 20q14-4 16-18q-14 0-16 18z" fill="var(--accent)"/>
+         <path d="M22 44h56l-6 32a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7z" fill="var(--accent)"/>`,
+  play: `<rect x="14" y="34" width="72" height="34" rx="17" fill="var(--accent)"/>
+         <circle cx="34" cy="51" r="5" fill="var(--ink)" opacity=".3"/><circle cx="66" cy="45" r="4" fill="var(--ink)" opacity=".3"/><circle cx="72" cy="57" r="4" fill="var(--ink)" opacity=".3"/>`,
+};
+const FACE_AT = { work: [42, 46], admin: [42, 46], life: [50, 62], play: [46, 51] };
+const FACES = {
+  sleepy:   `<path d="M-9 0q4 4 8 0M5 0q4 4 8 0" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/>
+             <text x="20" y="-18" font-family="Manrope, sans-serif" font-weight="800" font-size="11" fill="var(--muted)">z z</text>`,
+  idle:     `<circle cx="-9" cy="0" r="2.6" fill="var(--ink)"/><circle cx="9" cy="0" r="2.6" fill="var(--ink)"/><path d="M-4 8h8" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>`,
+  focused:  `<circle cx="-9" cy="1" r="2.6" fill="var(--ink)"/><circle cx="9" cy="1" r="2.6" fill="var(--ink)"/><path d="M-5 8q5 4 10 0" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  frazzled: `<path d="M-12 -3l5 3l-5 3M12 -3l-5 3l5 3" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+             <path d="M-6 9q1.5-2 3 0t3 0t3 0" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  proud:    `<path d="M-11 2q4-5 7 0M4 2q4-5 7 0" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/>
+             <path d="M-6 7q6 7 12 0z" fill="var(--ink)"/>`,
+};
+function buddySVG(section, mood) {
+  const [x, y] = FACE_AT[section];
+  return `<svg viewBox="0 0 100 90">${BODIES[section]}
+    <g transform="translate(${x} ${y})">${FACES[mood]}</g></svg>`;
+}
+
+const daysUntil = due => Math.round((parseKey(due) - today()) / 864e5);
+
+function moodFor(section) {
+  const all = state.tasks.filter(t => t.section === section);
+  const pending = all.filter(t => t.progress < 100);
+  const done = all.length - pending.length;
+  if (!pending.length) return done
+    ? { mood: "proud", text: "All done here. Time for a cup of tea." }
+    : { mood: "sleepy", text: "Nothing here yet. Add a task to wake me up." };
+  const late = pending.filter(t => t.due && daysUntil(t.due) < 0).length;
+  if (late) return { mood: "frazzled", text: `${late} ${late > 1 ? "tasks are" : "task is"} past the deadline.` };
+  const avg = Math.round(pending.reduce((s, t) => s + t.progress, 0) / pending.length);
+  if (avg >= 25) return { mood: "focused", text: `Moving along, ${avg}% across ${pending.length} ${pending.length > 1 ? "tasks" : "task"}.` };
+  return { mood: "idle", text: `${pending.length} ${pending.length > 1 ? "tasks" : "task"} waiting.` };
+}
+
+/* ============ Rendering: tabs ============ */
+function renderTabs() {
+  const box = document.getElementById("tabs");
+  Object.keys(SECTIONS).forEach(s => {
+    let tab = box.querySelector(`[data-section="${s}"]`);
+    if (!tab) {
+      tab = document.createElement("button");
+      tab.type = "button"; tab.className = "tab"; tab.dataset.section = s;
+      tab.setAttribute("role", "tab");
+      tab.innerHTML = `<div class="tab-top"><div class="buddy" aria-hidden="true"></div><div class="ring" aria-hidden="true"><span class="ring-pct"></span></div></div>
+        <div><div class="name"></div><div class="mood"></div></div>`;
+      tab.addEventListener("click", () => selectSection(s));
+      box.appendChild(tab);
+    }
+    const mine = state.tasks.filter(t => t.section === s);
+    const done = mine.filter(t => t.progress >= 100).length;
+    const pct = mine.length ? Math.round((done / mine.length) * 100) : 0;
+    const { mood, text } = moodFor(s);
+    tab.classList.toggle("active", activeSection === s);
+    tab.setAttribute("aria-selected", activeSection === s ? "true" : "false");
+    const buddy = tab.querySelector(".buddy");
+    buddy.dataset.mood = mood;
+    buddy.innerHTML = buddySVG(s, mood);
+    tab.querySelector(".ring").style.setProperty("--pct", pct);
+    tab.querySelector(".ring-pct").textContent = mine.length ? pct + "%" : "\u2013";
+    tab.querySelector(".name").textContent = SECTIONS[s];
+    tab.querySelector(".mood").textContent = text;
+  });
+}
+
+function selectSection(s) {
+  activeSection = s; editingId = null;
+  render();
+  document.getElementById("panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ============ Rendering: task rows, editing, subtasks ============ */
+function dueText(due) {
+  if (!due) return ["No date", false];
+  const n = daysUntil(due);
+  if (n === 0) return ["Today", false];
+  if (n === 1) return ["Tomorrow", false];
+  if (n > 1) return [`In ${n} days`, false];
+  return [n === -1 ? "1 day late" : `${-n} days late`, true];
+}
+
+function progressBarHTML(pct) {
+  return `<div class="t-prog"><div class="t-bar"><div class="t-bar-fill" style="width:${pct}%"></div></div><output>${pct}%</output></div>`;
+}
+
+function buildViewRow(t) {
+  const row = document.createElement("div");
+  row.className = "task";
+  const [dt, late] = dueText(t.due);
+  const showLate = late && t.progress < 100;
+  row.innerHTML = `
+    <input type="checkbox" class="t-check" ${t.progress >= 100 ? "checked" : ""} aria-label="Mark ${t.name} complete">
+    <span class="t-name"></span>
+    <span class="t-tag"></span>
+    <span class="t-due${showLate ? " late" : ""}" title="${t.due ? parseKey(t.due).toDateString() : ""}">${t.progress >= 100 ? "Done" : dt}</span>
+    ${progressBarHTML(t.progress)}
+    <div class="t-actions">
+      <button type="button" class="t-edit" aria-label="Edit task">&#9998;</button>
+      <button type="button" class="t-del" aria-label="Delete task">×</button>
+    </div>`;
+  row.querySelector(".t-name").textContent = t.name;
+  const tag = row.querySelector(".t-tag");
+  if (t.tag) { tag.textContent = t.tag; tag.title = t.tag; } else tag.style.visibility = "hidden";
+  row.querySelector(".t-check").addEventListener("change", e => {
+    t.completed = e.target.checked;
+    applyProgress(t);
+    save(); render();
+  });
+  row.querySelector(".t-edit").addEventListener("click", () => { editingId = t.id; render(); });
+  row.querySelector(".t-del").addEventListener("click", () => {
+    state.tasks = state.tasks.filter(x => x.id !== t.id); save(); render();
+  });
+  return row;
+}
+
+function buildEditRow(t) {
+  const form = document.createElement("form");
+  form.className = "task editing";
+  form.innerHTML = `
+    <span></span>
+    <input type="text" name="name" value="${t.name.replace(/"/g, "&quot;")}" required aria-label="Task name">
+    <input type="text" name="tag" value="${(t.tag || "").replace(/"/g, "&quot;")}" aria-label="Project tag">
+    <input type="date" name="due" value="${t.due || ""}" aria-label="Deadline">
+    ${progressBarHTML(t.progress)}
+    <div class="edit-actions">
+      <button type="submit" class="save-btn">Save</button>
+      <button type="button" class="cancel-btn">Cancel</button>
+    </div>`;
+  form.querySelector(".cancel-btn").addEventListener("click", () => { editingId = null; render(); });
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    t.name = form.name.value.trim() || t.name;
+    t.tag = form.tag.value.trim();
+    t.due = form.due.value;
+    editingId = null; save(); render();
+  });
+  return form;
+}
+
+function buildSubtasks(t) {
+  const wrap = document.createElement("div");
+  wrap.className = "subtasks-wrap";
+  const done = t.subtasks.filter(s => s.done).length;
+  const isOpen = openSubtasks.has(t.id);
+  const toggle = document.createElement("button");
+  toggle.type = "button"; toggle.className = "sub-toggle";
+  toggle.textContent = t.subtasks.length
+    ? `${isOpen ? "\u2013" : "+"} Subtasks (${done}/${t.subtasks.length})`
+    : `${isOpen ? "\u2013" : "+"} Add subtasks`;
+  toggle.addEventListener("click", () => {
+    if (openSubtasks.has(t.id)) openSubtasks.delete(t.id); else openSubtasks.add(t.id);
+    render();
+  });
+  wrap.appendChild(toggle);
+  if (isOpen) {
+    const box = document.createElement("div");
+    box.className = "subtasks";
+    const ul = document.createElement("ul");
+    ul.className = "sub-list";
+    t.subtasks.forEach(st => {
+      const li = document.createElement("li");
+      li.className = "sub-row" + (st.done ? " done" : "");
+      li.innerHTML = `<input type="checkbox" ${st.done ? "checked" : ""} aria-label="Mark ${st.name} complete"><span class="sub-name"></span><button type="button" class="sub-del" aria-label="Delete subtask">×</button>`;
+      li.querySelector(".sub-name").textContent = st.name;
+      li.querySelector("input").addEventListener("change", e => {
+        st.done = e.target.checked;
+        applyProgress(t);
+        save(); render();
+      });
+      li.querySelector(".sub-del").addEventListener("click", () => {
+        t.subtasks = t.subtasks.filter(x => x.id !== st.id);
+        applyProgress(t);
+        save(); render();
+      });
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    const addForm = document.createElement("form");
+    addForm.className = "add-sub";
+    addForm.innerHTML = `<input type="text" placeholder="Add subtask" aria-label="New subtask" required><button type="submit">Add</button>`;
+    addForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const input = addForm.querySelector("input");
+      const name = input.value.trim();
+      if (!name) return;
+      t.subtasks.push({ id: uid(), name, done: false });
+      applyProgress(t);
+      openSubtasks.add(t.id);
+      save(); render();
+    });
+    box.appendChild(addForm);
+    wrap.appendChild(box);
+  }
+  return wrap;
+}
+
+function taskRow(t) {
+  const li = document.createElement("li");
+  li.className = "task-wrap" + (t.progress >= 100 ? " done" : "");
+  li.appendChild(editingId === t.id ? buildEditRow(t) : buildViewRow(t));
+  li.appendChild(buildSubtasks(t));
+  return li;
+}
+
+function fill(ul, tasks, emptyText) {
+  ul.replaceChildren(...(tasks.length ? tasks.map(taskRow) : [Object.assign(document.createElement("li"), { className: "empty", textContent: emptyText })]));
+}
+
+function renderPanel() {
+  const panel = document.getElementById("panel");
+  const empty = document.getElementById("emptyState");
+  if (!activeSection) { panel.hidden = true; empty.hidden = false; return; }
+  empty.hidden = true; panel.hidden = false;
+  const s = activeSection;
+  panel.style.setProperty("--tab-accent", `var(${ACCENT_VAR[s]})`);
+  document.getElementById("panelTitle").textContent = SECTIONS[s];
+  document.getElementById("panelBubble").textContent = moodFor(s).text;
+
+  const mine = state.tasks.filter(t => t.section === s);
+  const pending = mine.filter(t => t.progress < 100).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999"));
+  const done = mine.filter(t => t.progress >= 100).sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""));
+  fill(document.getElementById("pendingList"), pending, "No pending tasks.");
+  fill(document.getElementById("completedList"), done, "Finished tasks will land here.");
+  document.getElementById("doneSummary").textContent = `Completed (${done.length})`;
+  document.querySelector(".panel .cols").hidden = !pending.length;
+
+  document.getElementById("addForm").dataset.section = s;
+}
+
+document.getElementById("addForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!activeSection) return;
+  const f = e.target;
+  const t = { id: uid(), section: activeSection, name: f.name.value.trim(), tag: f.tag.value.trim(), due: f.due.value, completed: false, progress: 0, doneAt: null, subtasks: [] };
+  state.tasks.push(t);
+  f.reset(); save(); render();
+  f.name.focus();
+});
+
+const level = p => p <= 0 ? 0 : p <= 50 ? 1 : p <= 100 ? 2 : p <= 200 ? 3 : 4;
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function renderHeatmap() {
+  const WEEKS = 26, t = today();
+  const start = addDays(t, -((WEEKS - 1) * 7 + t.getDay()));
+  const doneByDay = {};
+  state.tasks.forEach(x => { if (x.doneAt) doneByDay[x.doneAt] = (doneByDay[x.doneAt] || 0) + 1; });
+
+  const cells = document.getElementById("cells"), months = document.getElementById("months");
+  cells.replaceChildren(); months.replaceChildren();
+  for (let w = 0; w < WEEKS; w++) {
+    const first = addDays(start, w * 7);
+    const m = document.createElement("span");
+    for (let i = 0; i < 7; i++) if (addDays(first, i).getDate() === 1) m.textContent = MONTHS[addDays(first, i).getMonth()];
+    if (w === 0) m.textContent = MONTHS[first.getMonth()];
+    months.appendChild(m);
+  }
+  for (let d = new Date(start); d <= t; d = addDays(d, 1)) {
+    const k = keyOf(d), pts = Math.round(state.log[k] || 0), n = doneByDay[k] || 0;
+    const b = document.createElement("button");
+    b.className = "cell" + (k === keyOf(t) ? " today" : "");
+    b.dataset.l = level(pts);
+    const label = `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}: ${pts} points, ${n} ${n === 1 ? "task" : "tasks"} finished`;
+    b.title = label; b.setAttribute("aria-label", label);
+    b.addEventListener("click", () => document.getElementById("dayDetail").textContent = label);
+    cells.appendChild(b);
+  }
+  const sc = document.getElementById("heatScroll"); sc.scrollLeft = sc.scrollWidth;
+
+  document.getElementById("statToday").textContent = Math.round(state.log[keyOf(t)] || 0);
+  let streak = 0, d = state.log[keyOf(t)] > 0 ? t : addDays(t, -1);
+  while (state.log[keyOf(d)] > 0) { streak++; d = addDays(d, -1); }
+  document.getElementById("statStreak").textContent = streak;
+  const weekStart = keyOf(addDays(t, -t.getDay()));
+  document.getElementById("statWeek").textContent = state.tasks.filter(x => x.doneAt && x.doneAt >= weekStart).length;
+}
+
+function render() { renderHeatmap(); renderTabs(); renderPanel(); }
+
+document.getElementById("todayLabel").textContent =
+  new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+document.getElementById("reset").addEventListener("click", () => {
+  if (confirm("Delete all tasks and history? This can't be undone.")) { state = { tasks: [], log: {} }; activeSection = null; editingId = null; openSubtasks.clear(); save(); render(); }
+});
+render();
+</script>
+</body>
+</html>
