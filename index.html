@@ -65,6 +65,12 @@ button, input { font: inherit; color: inherit; }
 /* ============ Projects view ============ */
 .project-card { margin-bottom: 1.25rem; }
 .project-card:last-child { margin-bottom: 0; }
+.project-head { cursor: pointer; justify-content: space-between; flex-wrap: nowrap; margin-bottom: 0; }
+.project-head-text { min-width: 0; display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.project-toggle { background: none; border: 1.5px solid var(--line); border-radius: 8px; width: 1.8rem; height: 1.8rem;
+  font-weight: 800; font-size: 1.05rem; line-height: 1; cursor: pointer; color: var(--muted); flex: none; }
+.project-toggle:hover { background: var(--surface-2); color: var(--ink); }
+.project-body { margin-top: .9rem; }
 
 /* ============ 3. Main board ============ */
 .board { background: var(--surface); border-radius: 26px; padding: 1.5rem; box-shadow: var(--shadow);
@@ -293,6 +299,7 @@ let activeSection = null;
 let editingId = null;
 let currentView = "tracker";
 const openSubtasks = new Set();
+const collapsedProjects = new Set();
 
 /* progress is always DERIVED: checked task = 100, otherwise % of subtasks done, otherwise 0 */
 function computeProgress(t) {
@@ -650,26 +657,41 @@ function renderHeatmap() {
 /* ============ Rendering: Projects view ============ */
 function buildProjectCard(name, tasks) {
   const card = document.createElement("section");
-  card.className = "panel project-card";
+  const isOpen = !collapsedProjects.has(name);
+  card.className = "panel project-card" + (isOpen ? "" : " collapsed");
+  const safeName = name.replace(/"/g, "&quot;");
   const pending = tasks.filter(t => t.progress < 100).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999"));
   const done = tasks.filter(t => t.progress >= 100).sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""));
   card.innerHTML = `
-    <div class="panel-head">
-      <h2></h2>
-      <p class="bubble"></p>
+    <div class="panel-head project-head" role="button" tabindex="0" aria-expanded="${isOpen}">
+      <div class="project-head-text">
+        <h2></h2>
+        <p class="bubble"></p>
+      </div>
+      <button type="button" class="project-toggle" aria-label="${isOpen ? "Collapse" : "Expand"} ${safeName}">${isOpen ? "–" : "+"}</button>
     </div>
-    <h3 class="sub">Pending</h3>
-    <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Section</span><span>Deadline</span><span>Progress</span><span></span></div>
-    <ul class="list pending"></ul>
-    <details class="nested">
-      <summary>Completed (${done.length})</summary>
-      <ul class="list completed"></ul>
-    </details>`;
+    <div class="project-body"${isOpen ? "" : " hidden"}>
+      <h3 class="sub">Pending</h3>
+      <div class="cols" aria-hidden="true"><span></span><span>Task</span><span>Section</span><span>Deadline</span><span>Progress</span><span></span></div>
+      <ul class="list pending"></ul>
+      <details class="nested">
+        <summary>Completed (${done.length})</summary>
+        <ul class="list completed"></ul>
+      </details>
+    </div>`;
   card.querySelector("h2").textContent = name;
   card.querySelector(".bubble").textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} · ${done.length} done`;
   fill(card.querySelector(".pending"), pending, "No pending tasks.", { showSection: true });
   fill(card.querySelector(".completed"), done, "Finished tasks will land here.", { showSection: true });
   card.querySelector(".cols").hidden = !pending.length;
+  const toggle = () => {
+    if (collapsedProjects.has(name)) collapsedProjects.delete(name); else collapsedProjects.add(name);
+    renderProjects();
+  };
+  card.querySelector(".project-head").addEventListener("click", toggle);
+  card.querySelector(".project-head").addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+  });
   return card;
 }
 
@@ -723,7 +745,7 @@ document.getElementById("reset").addEventListener("click", async () => {
     sb.from("tasks").delete().not("id", "is", null),
     sb.from("progress_log").delete().not("id", "is", null),
   ]);
-  state = { tasks: [], log: {} }; activeSection = null; editingId = null; openSubtasks.clear();
+  state = { tasks: [], log: {} }; activeSection = null; editingId = null; openSubtasks.clear(); collapsedProjects.clear();
   try { localStorage.removeItem("taskden-active-section"); } catch (e) {}
   render();
 });
