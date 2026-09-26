@@ -387,6 +387,7 @@ function renderTabs() {
 
 function selectSection(s) {
   activeSection = s; editingId = null;
+  try { localStorage.setItem("taskden-active-section", s); } catch (e) {}
   render();
   document.getElementById("panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
@@ -618,11 +619,15 @@ document.getElementById("reset").addEventListener("click", async () => {
     sb.from("progress_log").delete().not("id", "is", null),
   ]);
   state = { tasks: [], log: {} }; activeSection = null; editingId = null; openSubtasks.clear();
+  try { localStorage.removeItem("taskden-active-section"); } catch (e) {}
   render();
 });
 
 (async function init() {
   await loadState();
+  let saved = null;
+  try { saved = localStorage.getItem("taskden-active-section"); } catch (e) {}
+  if (saved && SECTIONS[saved]) activeSection = saved;
   render();
 })();
 </script>
